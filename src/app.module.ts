@@ -14,6 +14,9 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { LandingPageModule } from './landing-page/landing-page.module.js';
 import { UploadsModule } from './uploads/uploads.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
+import { PrismaModule } from '../prisma/prisma.module.js';
+import { MailModule } from './mail/mail.module.js';
+import { RedisModule } from './redis/redis.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -36,7 +39,9 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     LandingPageModule,
     UploadsModule,
     TenantsModule,
-    // PrismaModule,
+    PrismaModule,
+    MailModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

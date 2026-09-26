@@ -11,3 +11,541 @@ generator client {
 datasource db {
   provider = "mysql"
 }
+
+enum UserRole {
+  SUPER_ADMIN
+  ACADEMY_ADMIN
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum TenantPlan {
+  BASIC
+  PRO
+}
+
+enum TenantStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum TemplateType {
+  MODERN
+  EDUCATION
+  CORPORATE
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum LessonStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EnrollmentCodeStatus {
+  AVAILABLE
+  USED
+  DISABLED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum MediaProvider {
+  IMAGEKIT
+  CLOUDINARY
+  BUNNY
+  CLOUDFLARE
+  YOUTUBE
+}
+
+enum LessonProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+}
+
+enum ExamAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+}
+
+enum NotificationType {
+  GENERAL
+  ENROLLMENT
+  LESSON
+  EXAM
+  SYSTEM
+}
+
+enum ContentRequestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String     @unique
+  password     String
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+
+  tenantId     Int?
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tenant             Tenant?              @relation(fields: [tenantId], references: [id])
+
+  academyAdminAcademy Academy?            @relation("AcademyAdmin")
+
+  enrollments        Enrollment[]
+  enrollmentCodes    EnrollmentCode[]     @relation("CodeUsedBy")
+  lessonProgress     LessonProgress[]
+
+  examAttempts       ExamAttempt[]
+
+  notifications      Notification[]
+
+  contentRequests    ContentChangeRequest[] @relation("RequestedBy")
+
+  @@index([tenantId])
+  @@index([role])
+  @@index([status])
+}
+
+model Tenant {
+  id          Int          @id @default(autoincrement())
+  name        String
+  slug        String       @unique
+  plan        TenantPlan   @default(BASIC)
+  status      TenantStatus @default(ACTIVE)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  academy        Academy?
+  users          User[]
+
+  courses        Course[]
+  lessons        Lesson[]
+  enrollmentCodes EnrollmentCode[]
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+
+  exams          Exam[]
+  examAttempts   ExamAttempt[]
+  notifications  Notification[]
+  media          Media[]
+  contentRequests ContentChangeRequest[]
+
+  @@index([status])
+  @@index([plan])
+}
+
+model Template {
+  id        Int          @id @default(autoincrement())
+  name      String
+  type      TemplateType @unique
+
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  academies Academy[]
+}
+
+model Academy {
+  id           Int          @id @default(autoincrement())
+ 
+  templateId Int
+
+  tenantId     Int          @unique
+  name         String
+  description  String?      @db.Text
+
+  logoUrl      String?
+  phone        String?
+  email        String?
+  address      String?
+
+  academyAdminId Int?       @unique
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  academyAdmin User?        @relation("AcademyAdmin", fields: [academyAdminId], references: [id])
+  template   Template  @relation(fields: [templateId], references: [id])
+
+
+  landingPage  LandingPage?
+}
+
+model Course {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int
+
+  title       String
+  description String?      @db.Text
+  imageUrl    String?
+
+  status      CourseStatus @default(DRAFT)
+  order       Int          @default(0)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  lessons     Lesson[]
+  exams       Exam[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, order])
+}
+
+model Lesson {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int
+  courseId    Int
+
+  title       String
+  description String?      @db.Text
+  content     String?      @db.LongText
+
+  videoUrl    String?
+  videoId     String?
+  videoType   MediaProvider?
+
+  duration    Int?
+  order       Int          @default(0)
+
+  status      LessonStatus @default(DRAFT)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  tenant          Tenant             @relation(fields: [tenantId], references: [id])
+  course          Course             @relation(fields: [courseId], references: [id])
+
+  enrollmentCodes EnrollmentCode[]
+  enrollments     Enrollment[]
+  progress        LessonProgress[]
+  exams           Exam[]
+
+  @@index([tenantId])
+  @@index([courseId])
+  @@index([tenantId, courseId, order])
+}
+
+model EnrollmentCode {
+  id          Int                  @id @default(autoincrement())
+  tenantId    Int
+  lessonId    Int
+
+  code        String               @unique
+  status      EnrollmentCodeStatus @default(AVAILABLE)
+
+  studentId   Int?
+  usedAt      DateTime?
+
+  createdAt   DateTime             @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  lesson      Lesson      @relation(fields: [lessonId], references: [id])
+
+  student     User?      @relation("CodeUsedBy", fields: [studentId], references: [id])
+ enrollment Enrollment?
+  @@index([tenantId])
+  @@index([lessonId])
+  @@index([lessonId, status])
+  @@index([studentId])
+}
+
+model Enrollment {
+  id                Int              @id @default(autoincrement())
+  tenantId          Int
+  studentId         Int
+  lessonId          Int
+
+  enrollmentCodeId  Int?             @unique
+
+  status            EnrollmentStatus @default(ACTIVE)
+  enrolledAt        DateTime         @default(now())
+  completedAt       DateTime?
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  student           User              @relation(fields: [studentId], references: [id])
+  lesson            Lesson            @relation(fields: [lessonId], references: [id])
+  enrollmentCode    EnrollmentCode?   @relation(fields: [enrollmentCodeId], references: [id])
+
+  @@unique([studentId, lessonId])
+  @@index([tenantId])
+  @@index([tenantId, studentId])
+  @@index([lessonId])
+}
+
+model LessonProgress {
+  id           Int                  @id @default(autoincrement())
+  tenantId     Int
+  studentId    Int
+  lessonId     Int
+
+  progress     Int                  @default(0)
+  status       LessonProgressStatus @default(NOT_STARTED)
+
+  startedAt    DateTime?
+  completedAt  DateTime?
+  lastWatchedAt DateTime?
+
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id])
+  student      User   @relation(fields: [studentId], references: [id])
+  lesson       Lesson @relation(fields: [lessonId], references: [id])
+
+  @@unique([studentId, lessonId])
+  @@index([tenantId])
+  @@index([tenantId, studentId])
+  @@index([lessonId])
+}
+
+model Exam {
+  id             Int        @id @default(autoincrement())
+  tenantId       Int
+  courseId       Int?
+  lessonId       Int?
+
+  title          String
+  description    String?    @db.Text
+
+  duration       Int?
+  passingScore   Float
+
+  status         ExamStatus @default(DRAFT)
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  course         Course?    @relation(fields: [courseId], references: [id])
+  lesson         Lesson?    @relation(fields: [lessonId], references: [id])
+
+  questions      Question[]
+  attempts       ExamAttempt[]
+
+  @@index([tenantId])
+  @@index([courseId])
+  @@index([lessonId])
+}
+
+model Question {
+  id          Int          @id @default(autoincrement())
+  examId      Int
+
+  text        String       @db.Text
+  type        QuestionType
+  points      Float        @default(1)
+  order       Int          @default(0)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  exam        Exam         @relation(fields: [examId], references: [id])
+  options     QuestionOption[]
+  answers     ExamAnswer[]
+
+  @@index([examId])
+  @@index([examId, order])
+}
+
+model QuestionOption {
+  id          Int       @id @default(autoincrement())
+  questionId  Int
+
+  text        String
+  isCorrect   Boolean   @default(false)
+  order       Int       @default(0)
+
+  question    Question  @relation(fields: [questionId], references: [id])
+  answers     ExamAnswer[]
+
+  @@index([questionId])
+}
+
+model ExamAttempt {
+  id           Int               @id @default(autoincrement())
+  tenantId     Int
+  examId       Int
+  studentId    Int
+
+  status       ExamAttemptStatus @default(IN_PROGRESS)
+
+  startedAt    DateTime           @default(now())
+  submittedAt  DateTime?
+
+  score        Float?
+  passed       Boolean?
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  exam         Exam               @relation(fields: [examId], references: [id])
+  student      User               @relation(fields: [studentId], references: [id])
+
+  answers      ExamAnswer[]
+
+  @@index([tenantId])
+  @@index([tenantId, studentId])
+  @@index([examId])
+  @@index([examId, studentId])
+}
+
+model ExamAnswer {
+  id          Int       @id @default(autoincrement())
+  attemptId   Int
+  questionId  Int
+  optionId    Int?
+
+  isCorrect   Boolean?
+  points      Float     @default(0)
+
+  attempt     ExamAttempt   @relation(fields: [attemptId], references: [id])
+  question    Question      @relation(fields: [questionId], references: [id])
+  option      QuestionOption? @relation(fields: [optionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+  @@index([optionId])
+}
+
+model LandingPage {
+  id               Int      @id @default(autoincrement())
+  academyId        Int      @unique
+
+  heroTitle        String?
+  heroDescription  String?  @db.Text
+  heroImageUrl     String?
+
+  aboutTitle       String?
+  aboutDescription String?  @db.Text
+
+  instructorName   String?
+  instructorBio    String?  @db.Text
+  instructorImage  String?
+  qualifications   String?  @db.Text
+  experienceYears  Int?
+
+  features         Json?
+
+  contactEmail     String?
+  contactPhone     String?
+  contactAddress   String?
+
+  footerText       String?  @db.Text
+  published        Boolean  @default(false)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  academy          Academy  @relation(fields: [academyId], references: [id])
+}
+
+model Media {
+  id            Int           @id @default(autoincrement())
+  tenantId      Int
+
+  type          MediaType
+  provider      MediaProvider
+
+  url           String
+  publicId      String?
+  fileName      String?
+  mimeType      String?
+  size          Int?
+  duration      Int?
+
+  createdAt     DateTime      @default(now())
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, type])
+}
+
+model Notification {
+  id          Int              @id @default(autoincrement())
+  tenantId    Int
+  userId      Int
+
+  title       String
+  message     String            @db.Text
+  type        NotificationType
+
+  readAt      DateTime?
+
+  createdAt   DateTime         @default(now())
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([userId, readAt])
+}
+
+model ContentChangeRequest {
+  id            Int                  @id @default(autoincrement())
+  tenantId      Int
+  requestedById Int
+
+  title         String
+  description   String               @db.Text
+
+  status        ContentRequestStatus @default(PENDING)
+
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  completedAt   DateTime?
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  requestedBy   User                 @relation("RequestedBy", fields: [requestedById], references: [id])
+
+  @@index([tenantId])
+  @@index([requestedById])
+  @@index([tenantId, status])
+}
