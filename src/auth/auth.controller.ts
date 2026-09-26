@@ -9,8 +9,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("register")
-  createStudentAccount(@Body() dto: CreateAuthDto) {
-    return this.authService.createStudentAccount(dto);
+  createStudentAccount(@Body() dto: CreateAuthDto,tenantId: number) {
+    return this.authService.createStudentAccount(dto, tenantId);
   }
 
   @Post('login')
