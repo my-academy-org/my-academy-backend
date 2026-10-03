@@ -26,7 +26,6 @@ export class LandingPageService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async create(createLandingPageDto: CreateLandingPageDto, user: AuthUser) {
-
     if (!user.tenantId) {
       throw new ForbiddenException('You are not assigned to an academy');
     }
@@ -35,12 +34,26 @@ export class LandingPageService {
       where: { tenantId: user.tenantId },
       select: { id: true, landingPage: { select: { id: true } } },
     });
-    
+
+    const userPlan = await this.prismaService.tenant.findFirst({
+      where: {
+        id: user.tenantId,
+        status: 'ACTIVE',
+      },
+    });
+
     if (!academy) {
       throw new NotFoundException('Academy not found');
     }
+
     if (academy.landingPage) {
       throw new ConflictException('This academy already has a landing page');
+    }
+
+    if (userPlan?.plan === 'BASIC') {
+      throw new ForbiddenException(
+        'Your current plan does not allow creating a landing page. Please upgrade your plan to create a landing page.',
+      );
     }
 
     const landingPage = await this.prismaService.landingPage.create({
@@ -171,7 +184,6 @@ export class LandingPageService {
 
     return { message: 'Landing page deleted successfully' };
   }
-
 
   private tenantFilter(user: AuthUser): Prisma.LandingPageWhereInput {
     if (user.role === UserRole.SUPER_ADMIN) return {};

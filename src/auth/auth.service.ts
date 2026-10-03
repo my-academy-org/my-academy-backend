@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ForbiddenException,
+  HttpException,
   Injectable,
   UnauthorizedException,
   UnprocessableEntityException,
@@ -9,7 +11,6 @@ import { UpdateAuthDto } from './dto/update-auth.dto.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LoginAuthDto } from './dto/login-auth-dto.js';
 import * as bcrypt from 'bcrypt';
-import { env } from 'prisma/config';
 import jwt from 'jsonwebtoken';
 import { RedisService } from '../redis/redis.service.js';
 import { MailService } from '../mail/mail.service.js';
@@ -41,10 +42,14 @@ export class AuthService {
       JSON.stringify({ ...dto, password: hashedPassword }),
       3600,
     );
+    const slug = this.prisma.tenant.findFirst({
+      where: { id: tenantId },
+      select: { slug: true },
+    });
 
     const otp = generateOtp();
 
-    const verifyUrl = `https://myacademy.com/verify-otp?email=${encodeURIComponent(dto.email)}`;
+    const verifyUrl = `https://${slug}.my-academy.online/verify-otp?email=${encodeURIComponent(dto.email)}`;
 
     const options = {
       to: dto.email,
@@ -74,15 +79,6 @@ export class AuthService {
       message:
         'Student account created successfully. Please check your email for verification.',
     };
-
-    //   data: {
-    //     name: dto.name,
-    //     email: dto.email,
-    //     password: hashedPassword,
-    //     role: 'STUDENT',
-    //     tenantId: tenantId,
-    //   },
-    // });
   }
 
   async login(loginDto: LoginAuthDto) {
@@ -106,6 +102,18 @@ export class AuthService {
         throw new UnauthorizedException('Invalid email or password');
       }
 
+      if (user.status === 'SUSPENDED') {
+        throw new ForbiddenException('Your account is suspended');
+      }
+
+      // An invited academy admin stays INACTIVE until the first login.
+      if (user.role === 'ACADEMY_ADMIN' && user.status === 'INACTIVE') {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { status: 'ACTIVE' },
+        });
+      }
+
       const token = jwt.sign(
         {
           userId: user.id,
@@ -127,6 +135,8 @@ export class AuthService {
         },
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
+
       console.error('LOGIN ERROR:', error);
 
       throw new UnauthorizedException('Invalid email or password');
@@ -165,49 +175,59 @@ export class AuthService {
   }
 
   async verifyAcademyAdminOtp(email: string, otp: string) {
-      const storedOtp = await this.redis.get(`otp:${email}`);
-  
-      if (!storedOtp) {
-        throw new UnprocessableEntityException('OTP has expired');
-      }
-      const parsedOtp = JSON.parse(storedOtp);
-  
-      if (parsedOtp.otp !== otp) {
-        throw new UnprocessableEntityException('Invalid OTP');
-      }
-      const password = Math.random().toString(36).slice(-8);
-      const hashedPassword = await bcrypt.hash(password, 10);
-  
-      if (parsedOtp.otp === otp) {
-        await this.redis.del(`otp:${email}`);
-  
-        await this.prisma.user.create({
-          data: {
-            email,
-            role: 'ACADEMY_ADMIN',
-            password: hashedPassword,
-            name: parsedOtp.name,
-            tenantId: parseInt(parsedOtp.tenantId),
+    const storedOtp = await this.redis.get(`otp:${email}`);
+
+    if (!storedOtp) {
+      throw new UnprocessableEntityException('OTP has expired');
+    }
+    const parsedOtp = JSON.parse(storedOtp);
+
+    if (parsedOtp.otp !== otp) {
+      throw new UnprocessableEntityException('Invalid OTP');
+    }
+    const password = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    if (parsedOtp.otp === otp) {
+      await this.redis.del(`otp:${email}`);
+
+     const user =  await this.prisma.user.create({
+        data: {
+          email,
+          role: 'ACADEMY_ADMIN',
+          // Becomes ACTIVE on first login.
+          status: 'INACTIVE',
+          password: hashedPassword,
+          name: parsedOtp.name,
+          tenantId: parseInt(parsedOtp.tenantId),
+          academyAdminAcademy: {
+            connect: { tenantId: parseInt(parsedOtp.tenantId) },
           },
-        });
-  
-        const emailOptions = {
-          to: email,
-          subject: 'Your Account Has Been Created',
-          text: `Your account has been created successfully.
+        },
+      });
+
+      await this.prisma.academy.update({
+        where: { tenantId: parseInt(parsedOtp.tenantId) },
+        data: { academyAdminId: user.id },
+      });
+
+      const emailOptions = {
+        to: email,
+        subject: 'Your Account Has Been Created',
+        text: `Your account has been created successfully.
                  Your login details are:
                   Email:${email}
                   Password:${password}`,
-        };
-  
-        await this.mail.sendMail(emailOptions);
-  
-        return {
-          message:
-            'email verified successfully, account created. Please check your email for login details.',
-        };
-      }
+      };
+
+      await this.mail.sendMail(emailOptions);
+
+      return {
+        message:
+          'email verified successfully, account created. Please check your email for login details.',
+      };
     }
+  }
 
   findOne(id: number) {
     return `This action returns a #${id} auth`;

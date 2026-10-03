@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEmail,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUrl,
@@ -13,47 +14,58 @@ import type { Prisma } from '../../../generated/prisma/client.js';
 export class CreateLandingPageDto {
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   heroTitle?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   heroDescription?: string;
 
   @IsOptional()
   @IsUrl()
+  @IsNotEmpty()
   heroImageUrl?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   aboutTitle?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   aboutDescription?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   instructorName?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   instructorBio?: string;
 
   @IsOptional()
   @IsUrl()
+  @IsNotEmpty()
   instructorImage?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   qualifications?: string;
 
   @IsOptional()
   @IsInt()
   @Min(0)
+  @IsNotEmpty()
   experienceYears?: number;
 
   @IsOptional()
   @IsArray()
+  @IsNotEmpty()
   features?: Prisma.InputJsonValue[];
 
   @IsOptional()

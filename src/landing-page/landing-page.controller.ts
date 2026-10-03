@@ -34,6 +34,7 @@ export class LandingPageController {
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('SUPER_ADMIN', 'ACADEMY_ADMIN')
+
   findAll(@Req() req: { user: AuthUser }) {
     return this.landingPageService.findAll(req.user);
   }
@@ -47,6 +48,7 @@ export class LandingPageController {
   @Patch(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('SUPER_ADMIN', 'ACADEMY_ADMIN')
+
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateLandingPageDto: UpdateLandingPageDto,
