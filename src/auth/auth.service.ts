@@ -143,6 +143,30 @@ export class AuthService {
     }
   }
 
+  async getCurrentUser(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        tenantId: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    if (user.status === 'SUSPENDED') {
+      throw new ForbiddenException('Your account is suspended');
+    }
+
+    return { user };
+  }
+
   async verifyStudentOtp(email: string, otp: string) {
     const storedOtp = await this.redis.get(`student:${email}`);
 
