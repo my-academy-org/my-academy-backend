@@ -109,10 +109,29 @@ export class UsersService {
     );
 
 
+    const verifyUrl = `https://${existingTenant.slug}.my-academy.online/verify-otp?email=${encodeURIComponent(email)}`;
+
     const emailOptions = {
       to: email,
       subject: 'Your OTP for Academy Admin Registration',
-      text: `Your OTP is: ${otp}. It will expire in 5 minutes.`,
+      text: `Your OTP is: ${otp}. It will expire in 5 minutes. Verify your email here: ${verifyUrl}`,
+      html: `
+    <p>Your OTP is: <strong>${otp}</strong>. It will expire in 5 minutes.</p>
+    <a
+      href="${verifyUrl}"
+      style="
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #2563eb;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: bold;
+      "
+    >
+      Verify Your Email
+    </a>
+  `,
     };
     await this.mailService.sendMail(emailOptions);
     return {
