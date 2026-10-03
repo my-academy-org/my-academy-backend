@@ -42,14 +42,11 @@ export class AuthService {
       JSON.stringify({ ...dto, password: hashedPassword }),
       3600,
     );
-    const slug = this.prisma.tenant.findFirst({
-      where: { id: tenantId },
-      select: { slug: true },
-    });
+ 
 
     const otp = generateOtp();
 
-    const verifyUrl = `https://${slug}.my-academy.online/verify-otp?email=${encodeURIComponent(dto.email)}`;
+    const verifyUrl = `https://my-academy.online/verify-otp?email=${encodeURIComponent(dto.email)}&role=STUDENT`;
 
     const options = {
       to: dto.email,
@@ -214,6 +211,7 @@ export class AuthService {
 
     if (parsedOtp.otp === otp) {
       await this.redis.del(`otp:${email}`);
+
 
      const user =  await this.prisma.user.create({
         data: {

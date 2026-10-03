@@ -109,7 +109,7 @@ export class UsersService {
     );
 
 
-    const verifyUrl = `https://${existingTenant.slug}.my-academy.online/verify-otp?email=${encodeURIComponent(email)}`;
+    const verifyUrl = `https://my-academy.online/verify-otp?email=${encodeURIComponent(email)}&role=ACADEMY_ADMIN`;
 
     const emailOptions = {
       to: email,
