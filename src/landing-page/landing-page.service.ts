@@ -53,7 +53,7 @@ export class LandingPageService {
 
     const userPlan = academy.tenant;
 
-    if (userPlan?.plan === 'BASIC') {
+    if (userPlan?.plan === 'BASIC'&& user.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException(
         'Your current plan does not allow creating a landing page. Please upgrade your plan to create a landing page.',
       );
