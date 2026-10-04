@@ -25,21 +25,21 @@ export interface AuthUser {
 export class LandingPageService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async create(createLandingPageDto: CreateLandingPageDto, user: AuthUser) {
-
-    if (!user.tenantId&&user.role !== UserRole.SUPER_ADMIN) {
+  async create(
+    createLandingPageDto: CreateLandingPageDto,
+    user: AuthUser,
+    id: number,
+  ) {
+    if (!user.tenantId && user.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException('You are not assigned to an academy');
     }
 
     const academy = await this.prismaService.academy.findUnique({
-      where: { tenantId: user.tenantId },
-      select: { id: true, landingPage: { select: { id: true } } },
-    });
-
-    const userPlan = await this.prismaService.tenant.findFirst({
-      where: {
-        id: user.tenantId,
-        status: 'ACTIVE',
+      where: { id: id },
+      select: {
+        id: true,
+        landingPage: { select: { id: true } },
+        tenant: { select: { id: true, plan: true } },
       },
     });
 
@@ -50,6 +50,8 @@ export class LandingPageService {
     if (academy.landingPage) {
       throw new ConflictException('This academy already has a landing page');
     }
+
+    const userPlan = academy.tenant;
 
     if (userPlan?.plan === 'BASIC') {
       throw new ForbiddenException(
@@ -84,6 +86,7 @@ export class LandingPageService {
         status: true,
         academy: {
           select: {
+            id: true,
             name: true,
             description: true,
             logoUrl: true,
