@@ -26,7 +26,8 @@ export class LandingPageService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async create(createLandingPageDto: CreateLandingPageDto, user: AuthUser) {
-    if (!user.tenantId) {
+
+    if (!user.tenantId&&user.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException('You are not assigned to an academy');
     }
 
