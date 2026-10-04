@@ -21,14 +21,15 @@ import { Roles } from '../helpers/role.decoretor.js';
 export class LandingPageController {
   constructor(private readonly landingPageService: LandingPageService) {}
 
-  @Post()
+  @Post('/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ACADEMY_ADMIN','SUPER_ADMIN')
   create(
     @Body() createLandingPageDto: CreateLandingPageDto,
     @Req() req: { user: AuthUser },
+    @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.landingPageService.create(createLandingPageDto, req.user);
+    return this.landingPageService.create(createLandingPageDto, req.user, id);
   }
 
   @Get()
