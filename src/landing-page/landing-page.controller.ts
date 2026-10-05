@@ -9,7 +9,6 @@ import {
   UseGuards,
   Req,
   ParseIntPipe,
-  Put,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { LandingPageService, AuthUser } from './landing-page.service.js';
@@ -47,7 +46,7 @@ export class LandingPageController {
     return this.landingPageService.findBySlug(slug);
   }
 
-  @Put(':id')
+  @Patch(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('SUPER_ADMIN', 'ACADEMY_ADMIN')
 
