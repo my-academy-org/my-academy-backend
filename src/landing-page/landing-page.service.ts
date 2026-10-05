@@ -34,8 +34,13 @@ export class LandingPageService {
       throw new ForbiddenException('You are not assigned to an academy');
     }
 
-    const academy = await this.prismaService.academy.findUnique({
-      where: { id: id },
+    // A super admin has no tenant and may create a landing page for any
+    // academy; an academy admin only for the academy of their own tenant.
+    const academy = await this.prismaService.academy.findFirst({
+      where:
+        user.role === UserRole.SUPER_ADMIN
+          ? { id }
+          : { id, tenantId: user.tenantId! },
       select: {
         id: true,
         landingPage: { select: { id: true } },
@@ -67,8 +72,12 @@ export class LandingPageService {
   }
 
   findAll(user: AuthUser) {
+    // A super admin has no tenant and sees every academy's landing page.
+    const where: Prisma.LandingPageWhereInput =
+      user.role === UserRole.SUPER_ADMIN ? {} : this.tenantFilter(user);
+
     return this.prismaService.landingPage.findMany({
-      where: this.tenantFilter(user),
+      where,
       include: {
         academy: {
           select: { id: true, name: true, tenant: { select: { slug: true } } },
@@ -167,8 +176,14 @@ export class LandingPageService {
     updateLandingPageDto: UpdateLandingPageDto,
     user: AuthUser,
   ) {
+    // A super admin has no tenant and may edit any academy's landing page.
+    const where: Prisma.LandingPageWhereInput =
+      user.role === UserRole.SUPER_ADMIN
+        ? { id }
+        : { id, ...this.tenantFilter(user) };
+
     const { count } = await this.prismaService.landingPage.updateMany({
-      where: { id, ...this.tenantFilter(user) },
+      where,
       data: updateLandingPageDto,
     });
     if (!count) {
@@ -179,8 +194,14 @@ export class LandingPageService {
   }
 
   async remove(id: number, user: AuthUser) {
+    // A super admin has no tenant and may delete any academy's landing page.
+    const where: Prisma.LandingPageWhereInput =
+      user.role === UserRole.SUPER_ADMIN
+        ? { id }
+        : { id, ...this.tenantFilter(user) };
+
     const { count } = await this.prismaService.landingPage.deleteMany({
-      where: { id, ...this.tenantFilter(user) },
+      where,
     });
     if (!count) {
       throw new NotFoundException(`Landing page #${id} not found`);
@@ -190,7 +211,6 @@ export class LandingPageService {
   }
 
   private tenantFilter(user: AuthUser): Prisma.LandingPageWhereInput {
-    if (user.role === UserRole.SUPER_ADMIN) return {};
     if (!user.tenantId) {
       throw new ForbiddenException('You are not assigned to an academy');
     }
