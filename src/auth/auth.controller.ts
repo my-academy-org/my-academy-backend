@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, Res, UseGuards, HttpCode } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
@@ -15,11 +15,12 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  createStudentAccount(@Body() dto: CreateAuthDto, tenantId: number) {
-    return this.authService.createStudentAccount(dto, tenantId);
+  createStudentAccount(@Body() dto: CreateAuthDto) {
+    return this.authService.createStudentAccount(dto);
   }
 
   @Post('login')
+  @HttpCode(200)
   async login(
     @Body() loginDto: LoginAuthDto,
     @Res({ passthrough: true }) res: Response,

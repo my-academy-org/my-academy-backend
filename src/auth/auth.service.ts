@@ -24,35 +24,62 @@ export class AuthService {
     private readonly mail: MailService,
   ) {}
 
-  async createStudentAccount(dto: CreateAuthDto, tenantId: number) {
+  async createStudentAccount(dto: CreateAuthDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
+    const existingTenant = await this.prisma.tenant.findUnique({
+      where: { id: dto.tenantId },
+    });
+
+    if (!existingTenant) {
+      throw new BadRequestException('Invalid tenant ID');
+    }
+
+    if (existingTenant.status !== 'ACTIVE') {
+      throw new ForbiddenException('This academy is not available');
+    }
+
     if (existingUser) {
       throw new BadRequestException('user with this email already exists');
+    }
+    const existingOtp = await this.redis.get(`student:${dto.email}`);
+
+    if (existingOtp) {
+      throw new UnprocessableEntityException('OTP already sent for this email');
     }
 
     const hashedPassword = bcrypt.hashSync(dto.password, 10);
 
     const redisKey = `student:${dto.email}`;
 
-    await this.redis.set(
-      redisKey,
-      JSON.stringify({ ...dto, password: hashedPassword }),
-      3600,
-    );
- 
+    const otp = await generateOtp();
 
-    const otp = generateOtp();
+    const redisValue: {
+      otp: string;
+      email: string;
+      password: string;
+      tenantId: number;
+      name: string;
+    } = {
+      otp: otp,
+      email: dto.email,
+      password: hashedPassword,
+      tenantId: dto.tenantId,
+      name: dto.name,
+    };
+
+    await this.redis.set(redisKey, JSON.stringify(redisValue), 300);
 
     const verifyUrl = `https://my-academy.online/verify-otp?email=${encodeURIComponent(dto.email)}&role=STUDENT`;
 
-    const options = {
+    const emailOptions = {
       to: dto.email,
-      subject: 'Verify your student account',
-      text: `Your student account has been created. Your OTP is: ${otp}.`,
+      subject: 'Your OTP for student Registration',
+      text: `Your OTP is: ${otp}. It will expire in 5 minutes. Verify your email here: ${verifyUrl}`,
       html: `
+    <p>Your OTP is: <strong>${otp}</strong>. It will expire in 5 minutes.</p>
     <a
       href="${verifyUrl}"
       style="
@@ -70,7 +97,7 @@ export class AuthService {
   `,
     };
 
-    await this.mail.sendMail(options);
+    await this.mail.sendMail(emailOptions);
 
     return {
       message:
@@ -126,6 +153,7 @@ export class AuthService {
         token,
         user: {
           id: user.id,
+          name: user.name,
           email: user.email,
           role: user.role,
           tenantId: user.tenantId || null,
@@ -165,13 +193,13 @@ export class AuthService {
   }
 
   async verifyStudentOtp(email: string, otp: string) {
-    const storedOtp = await this.redis.get(`student:${email}`);
+    const existingOtp = await this.redis.get(`student:${email}`);
 
-    if (!storedOtp) {
+    if (!existingOtp) {
       throw new BadRequestException('OTP has expired');
     }
 
-    const parsedOtp = JSON.parse(storedOtp);
+    const parsedOtp = JSON.parse(existingOtp);
 
     if (parsedOtp.otp !== otp) {
       throw new BadRequestException('Invalid OTP');
@@ -196,12 +224,12 @@ export class AuthService {
   }
 
   async verifyAcademyAdminOtp(email: string, otp: string) {
-    const storedOtp = await this.redis.get(`otp:${email}`);
+    const existingOtp = await this.redis.get(`otp:${email}`);
 
-    if (!storedOtp) {
+    if (!existingOtp) {
       throw new UnprocessableEntityException('OTP has expired');
     }
-    const parsedOtp = JSON.parse(storedOtp);
+    const parsedOtp = JSON.parse(existingOtp);
 
     if (parsedOtp.otp !== otp) {
       throw new UnprocessableEntityException('Invalid OTP');
@@ -212,8 +240,7 @@ export class AuthService {
     if (parsedOtp.otp === otp) {
       await this.redis.del(`otp:${email}`);
 
-
-     const user =  await this.prisma.user.create({
+      const user = await this.prisma.user.create({
         data: {
           email,
           role: 'ACADEMY_ADMIN',

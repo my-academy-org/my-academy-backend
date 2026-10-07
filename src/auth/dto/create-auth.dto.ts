@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsString,
   MinLength,
 } from 'class-validator';
@@ -17,9 +18,7 @@ export class CreateAuthDto {
   @MinLength(6)
   password: string;
 
-  @IsEnum(['STUDENT'])
-  role: 'STUDENT';
-  
-  @IsEnum(['ACTIVE', 'INACTIVE','SUSPENDED'])
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  @IsNumber()
+  @IsNotEmpty()
+  tenantId: number;
 }

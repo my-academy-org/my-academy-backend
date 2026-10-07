@@ -77,6 +77,7 @@ enum MediaProvider {
   BUNNY
   CLOUDFLARE
   YOUTUBE
+  BACKBLAZE
 }
 
 enum LessonProgressStatus {
@@ -234,6 +235,9 @@ model Course {
   lessons     Lesson[]
   exams       Exam[]
 
+  enrollmentCodes EnrollmentCode[]
+  enrollments     Enrollment[]
+
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, order])
@@ -251,6 +255,8 @@ model Lesson {
   videoUrl    String?
   videoId     String?
   videoType   MediaProvider?
+  // The uploaded video; videoId/videoType mirror its publicId/provider.
+  mediaId     Int?         @unique
 
   duration    Int?
   order       Int          @default(0)
@@ -262,9 +268,8 @@ model Lesson {
 
   tenant          Tenant             @relation(fields: [tenantId], references: [id])
   course          Course             @relation(fields: [courseId], references: [id])
+  media           Media?             @relation(fields: [mediaId], references: [id])
 
-  enrollmentCodes EnrollmentCode[]
-  enrollments     Enrollment[]
   progress        LessonProgress[]
   exams           Exam[]
 
@@ -276,7 +281,7 @@ model Lesson {
 model EnrollmentCode {
   id          Int                  @id @default(autoincrement())
   tenantId    Int
-  lessonId    Int
+  courseId    Int
 
   code        String               @unique
   status      EnrollmentCodeStatus @default(AVAILABLE)
@@ -287,13 +292,13 @@ model EnrollmentCode {
   createdAt   DateTime             @default(now())
 
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
-  lesson      Lesson      @relation(fields: [lessonId], references: [id])
+  course      Course      @relation(fields: [courseId], references: [id])
 
   student     User?      @relation("CodeUsedBy", fields: [studentId], references: [id])
  enrollment Enrollment?
   @@index([tenantId])
-  @@index([lessonId])
-  @@index([lessonId, status])
+  @@index([courseId])
+  @@index([courseId, status])
   @@index([studentId])
 }
 
@@ -301,7 +306,7 @@ model Enrollment {
   id                Int              @id @default(autoincrement())
   tenantId          Int
   studentId         Int
-  lessonId          Int
+  courseId          Int
 
   enrollmentCodeId  Int?             @unique
 
@@ -311,13 +316,13 @@ model Enrollment {
 
   tenant            Tenant            @relation(fields: [tenantId], references: [id])
   student           User              @relation(fields: [studentId], references: [id])
-  lesson            Lesson            @relation(fields: [lessonId], references: [id])
+  course            Course            @relation(fields: [courseId], references: [id])
   enrollmentCode    EnrollmentCode?   @relation(fields: [enrollmentCodeId], references: [id])
 
-  @@unique([studentId, lessonId])
+  @@unique([studentId, courseId])
   @@index([tenantId])
   @@index([tenantId, studentId])
-  @@index([lessonId])
+  @@index([courseId])
 }
 
 model LessonProgress {
@@ -496,12 +501,14 @@ model Media {
   publicId      String?
   fileName      String?
   mimeType      String?
-  size          Int?
+  // Bytes: videos can be larger than an Int holds.
+  size          BigInt?
   duration      Int?
 
   createdAt     DateTime      @default(now())
 
   tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  lesson        Lesson?
 
   @@index([tenantId])
   @@index([tenantId, type])

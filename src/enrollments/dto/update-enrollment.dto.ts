@@ -1,4 +1,8 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateEnrollmentDto } from './create-enrollment.dto.js';
+import { IsEnum } from 'class-validator';
+import { EnrollmentStatus } from '../../../generated/prisma/enums.js';
 
-export class UpdateEnrollmentDto extends PartialType(CreateEnrollmentDto) {}
+// Only the status changes; the student and the course are fixed.
+export class UpdateEnrollmentDto {
+  @IsEnum(EnrollmentStatus)
+  status: EnrollmentStatus;
+}

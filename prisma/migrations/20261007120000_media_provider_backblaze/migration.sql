@@ -1,0 +1,3 @@
+-- Lesson videos can now be stored on Backblaze B2.
+ALTER TABLE `Lesson` MODIFY `videoType` ENUM('IMAGEKIT', 'CLOUDINARY', 'BUNNY', 'CLOUDFLARE', 'YOUTUBE', 'BACKBLAZE') NULL;
+ALTER TABLE `Media` MODIFY `provider` ENUM('IMAGEKIT', 'CLOUDINARY', 'BUNNY', 'CLOUDFLARE', 'YOUTUBE', 'BACKBLAZE') NOT NULL;

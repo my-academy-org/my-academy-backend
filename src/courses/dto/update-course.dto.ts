@@ -1,4 +1,7 @@
-import { PartialType } from '@nestjs/mapped-types';
+import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { CreateCourseDto } from './create-course.dto.js';
 
-export class UpdateCourseDto extends PartialType(CreateCourseDto) {}
+// A course never moves to another tenant.
+export class UpdateCourseDto extends PartialType(
+  OmitType(CreateCourseDto, ['tenantId'] as const),
+) {}

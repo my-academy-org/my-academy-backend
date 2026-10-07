@@ -17,6 +17,7 @@ import { TenantsModule } from './tenants/tenants.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { StorageModule } from './storage/storage.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -42,6 +43,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     PrismaModule,
     MailModule,
     RedisModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [AppService],
